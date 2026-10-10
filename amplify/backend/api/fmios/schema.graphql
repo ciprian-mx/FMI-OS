@@ -1,0 +1,236 @@
+# FMI OS — AppSync GraphQL core schema (Task 1.6, Requirement 1.1 / 1.5 / 7.1)
+#
+# Default authorization mode: Amazon Cognito User Pools (the `fmios` auth
+# resource). Every data model is protected with an owner-based `@auth` rule so
+# that each student can only read or mutate their own records. The Amplify
+# GraphQL transformer v2 stamps an implicit `owner` field (the Cognito `sub`)
+# on each row and injects a filter on every query/mutation/subscription,
+# enforcing Requirement 1.5 (student data isolation) at the API layer.
+#
+# Each model also carries an explicit `studentId` (the Cognito `sub`) plus a
+# `byStudent` secondary index so the backend Lambdas (Gus RAG orchestrator,
+# session generator, roadmap generator, etc. — added in later tasks) can list a
+# single student's records efficiently. The `studentId` field is the second of
+# the three isolation layers described in the design doc (AppSync @auth owner →
+# DynamoDB PK/studentId → Bedrock retrieval metadata filter).
+#
+# The custom `@function`-backed mutations (askGus, searchFiles, startSession,
+# generateRoadmap, extractTimetable, updateProgress) and their input/output
+# types are intentionally NOT declared here: they depend on Lambda resources
+# that do not exist yet. They are wired up in tasks 11.x–16.x once those
+# functions are added. This file provides the coherent core data model only.
+
+type Student
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  email: String!
+  displayName: String
+  # Hash of the student's Bedrock API key (never store the raw key). Managed by
+  # the Account Center (Requirement 6.3).
+  apiKeyHash: String
+}
+
+# Materials folder hierarchy (Task 4.1, Requirements 7.1 / 7.2).
+#
+# Folders are stored as an adjacency list: each node carries the `id` of its
+# `parentId` (null for the student's root). A materialized `path` string is
+# denormalized onto every node so Bedrock KB citations can render the full
+# folder trail (e.g. "Data Structures/Week 3") without walking the tree at
+# query time; it is kept in sync by the folder-hierarchy helpers in
+# `src/materials/folderHierarchy.ts`.
+#
+# Two secondary indexes back the Materials tree view and upload flows:
+#   • byStudent  — list every folder owned by a student (full-tree load / root
+#     discovery, filtered on parentId === null client-side).
+#   • byParent   — list the direct children of a given folder for lazy,
+#     expand-on-demand tree rendering (task 4.2) and move/delete subtree
+#     traversal (tasks 4.5 / 4.8). The sort key keeps a parent's children in
+#     stable, name-ordered form.
+type FolderNode
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "folderNodesByStudent")
+  name: String!
+  # Null for a root folder; otherwise the id of the containing folder. Indexed
+  # so children of a folder can be listed directly (adjacency-list traversal).
+  parentId: ID
+    @index(
+      name: "byParent"
+      queryField: "folderNodesByParent"
+      sortKeyFields: ["name"]
+    )
+  # Full materialized path for Bedrock KB citations, e.g. "Data Structures/Week 3".
+  path: String!
+  createdDate: AWSDateTime!
+}
+
+type MaterialFile
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "materialFilesByStudent")
+  folderId: ID!
+  name: String!
+  size: Int!
+  format: String!
+  uploadDate: AWSDateTime!
+  indexingStatus: IndexingStatus!
+  s3Key: String!
+  # Human-readable folder path for citations, e.g. "Data Structures > Week 3".
+  folderPath: String!
+}
+
+enum IndexingStatus {
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+}
+
+# Future Examinations timeline (Task 6.1, Requirements 9.1 / 9.2 / 9.3).
+#
+# The Future Examinations App (task 6.2) renders a student's exams in strict
+# chronological order, and the session generator (task 12.x) queries the exams
+# a student has coming up in the next 14 days. Both want the exams back already
+# ordered by `date`, so the `byStudent` index carries `date` as its sort key:
+# `examinationsByStudent(studentId, sortDirection, dateXYZ...)` returns a single
+# student's exams pre-sorted chronologically straight out of DynamoDB, with no
+# client-side re-sort and no table scan. `queryField` exposes it as a top-level
+# query the frontend / Lambdas call directly.
+#
+# NOTE: adding a sort key to an existing @index changes the backing GSI, so the
+# next `amplify push` provisions the updated index (see src/examinations/
+# examinations.ts header for the manual deploy note). Owner-based @auth is
+# unchanged, preserving the per-student isolation invariant (Property 2).
+type Examination
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID!
+    @index(
+      name: "byStudent"
+      queryField: "examinationsByStudent"
+      sortKeyFields: ["date"]
+    )
+  examName: String!
+  subject: String!
+  date: AWSDateTime!
+  notes: String
+}
+
+type TimeBlock
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "timeBlocksByStudent")
+  day: Day!
+  startTime: String! # HH:MM
+  endTime: String! # HH:MM
+  className: String!
+  location: String
+}
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+type GradeRecord
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "gradeRecordsByStudent")
+  subject: String!
+  examOrTopic: String!
+  grade: Float
+  notes: String
+  date: AWSDateTime!
+}
+
+type WeakPoint
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "weakPointsByStudent")
+  topicOrSubject: String!
+  severity: Severity!
+  notes: String
+  flaggedDate: AWSDateTime!
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+type LearningGoal
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "learningGoalsByStudent")
+  title: String!
+  description: String!
+  targetDate: AWSDateTime!
+  relatedTopics: [String!]!
+  isCompleted: Boolean!
+  completedDate: AWSDateTime
+}
+
+type TopicProgress
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "topicProgressByStudent")
+  topicId: String!
+  topicTitle: String!
+  lastStudiedDate: AWSDateTime
+  comprehensionLevel: ComprehensionLevel!
+  sessionCount: Int!
+  manualOverride: Boolean!
+}
+
+enum ComprehensionLevel {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+type Session
+  @model
+  @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  studentId: ID! @index(name: "byStudent", queryField: "sessionsByStudent")
+  createdAt: AWSDateTime!
+  status: SessionStatus!
+  lastCompletedTopicIndex: Int!
+  topics: [SessionTopic!]!
+  rationale: String!
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+# Embedded (non-@model) type stored inline on a Session row.
+type SessionTopic {
+  id: String!
+  title: String!
+  estimatedMinutes: Int!
+  summary: String!
+  keyPoints: [String!]!
+  comprehensionQuestion: String!
+  sourceFiles: [String!]!
+  completedAt: AWSDateTime
+  comprehensionResult: ComprehensionLevel
+}

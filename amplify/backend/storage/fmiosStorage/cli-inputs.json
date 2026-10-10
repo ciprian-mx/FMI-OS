@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "serviceConfiguration": {
+    "serviceName": "S3",
+    "resourceName": "fmiosStorage",
+    "bucketName": "fmios-materials-storage",
+    "storageAccess": "auth",
+    "authAccess": ["CREATE_AND_UPDATE", "READ", "DELETE"],
+    "guestAccess": [],
+    "triggerFunction": "NONE",
+    "groupAccess": {}
+  }
+}

@@ -1,0 +1,111 @@
+/* Full-viewport OS-style desktop shell (Requirement 3.1). */
+.desktop-environment {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at 30% 20%, #1c3a63 0%, #0a1424 70%, #060b14 100%);
+  color: #e6eefc;
+  user-select: none;
+}
+
+/* The surface where app icons sit. Leaves room at the bottom for the Taskbar. */
+.desktop-environment__surface {
+  position: absolute;
+  inset: 0 auto auto 0;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  max-height: calc(100vh - 56px);
+}
+
+.desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 92px;
+  padding: 0.6rem 0.4rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.desktop-icon:hover,
+.desktop-icon:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  outline: none;
+}
+
+.desktop-icon__glyph {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.desktop-icon__label {
+  font-size: 0.78rem;
+  word-break: break-word;
+}
+
+/* Layer where draggable WindowPanel windows (task 2.4) mount. */
+.desktop-environment__windows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.desktop-environment__windows > * {
+  pointer-events: auto;
+}
+
+/* Placeholder window shown until the real WindowPanel replaces it. */
+.desktop-window-placeholder {
+  position: absolute;
+  top: 60px;
+  left: 80px;
+  width: min(60vw, 720px);
+  background: #0f1f36;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.desktop-window-placeholder[data-focused='true'] {
+  border-color: rgba(120, 180, 255, 0.75);
+}
+
+.desktop-window-placeholder__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.desktop-window-placeholder__bar button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Persistent Taskbar mounting point, fixed at the bottom (task 3.1). */
+.desktop-environment__taskbar {
+  position: absolute;
+  inset: auto 0 0 0;
+  min-height: 48px;
+}

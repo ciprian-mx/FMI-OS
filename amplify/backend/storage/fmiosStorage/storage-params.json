@@ -1,0 +1,21 @@
+{
+  "comment": "Per-student prefix policy for FMI OS Materials storage (Task 1.7, Requirements 1.1, 1.5, 7.3). Each authenticated student may only access objects under private/${cognito-identity.amazonaws.com:sub}/ in the S3 bucket. The variable ${cognito-identity.amazonaws.com:sub} is the IAM policy condition key that resolves at request time to the signed-in student's Cognito Identity ID, so no student can read or write another student's prefix. This file documents the intended IAM scoping; the canonical, enforced policy is expressed in override.ts, which the Amplify CLI applies to the generated S3 CloudFormation stack on `amplify push`.",
+  "prefix": "private/${cognito-identity.amazonaws.com:sub}/",
+  "authenticatedStudentActions": {
+    "allow": [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ],
+    "resource": "arn:aws:s3:::<bucket-name>/private/${cognito-identity.amazonaws.com:sub}/*"
+  },
+  "listScoping": {
+    "action": "s3:ListBucket",
+    "resource": "arn:aws:s3:::<bucket-name>",
+    "condition": {
+      "StringLike": {
+        "s3:prefix": ["private/${cognito-identity.amazonaws.com:sub}/*"]
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Production build
+/build
+
+# Testing
+/coverage
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Amplify (generated / environment-specific — do not commit)
+/src/aws-exports.js
+/src/amplifyconfiguration.json
+amplify/\#current-cloud-backend/
+amplify/.config/local-*
+amplify/mock-data/
+amplify/backend/amplify-meta.json
+amplify/backend/awscloudformation/
+amplify/backend/.temp/
+amplify/team-provider-info.json
+build/
+dist/
+aws-exports.js
+awsconfiguration.json
+amplifyconfiguration.json
+amplifyconfiguration.dart
+amplify-build-config.json
+amplify-gradle-config.json
+amplifytools.xcconfig
+.secret-*
+**.sample

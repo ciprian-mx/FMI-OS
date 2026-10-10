@@ -1,0 +1,141 @@
+/*
+ * Persistent Taskbar (Requirement 4.1, 4.2).
+ *
+ * The Taskbar is designed to mount into DesktopEnvironment's `taskbarSlot`,
+ * which is already fixed to the bottom of the viewport. These styles make the
+ * bar fill that slot and lay out its three controls horizontally; the fixed
+ * bottom positioning itself comes from the slot wrapper so the bar stays
+ * visible at all times while authenticated.
+ */
+.taskbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.4rem 0.75rem;
+  box-sizing: border-box;
+  background: rgba(10, 20, 36, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  color: #e6eefc;
+}
+
+/* Control 1: "Start today's session" button. */
+.taskbar__start-session {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.9rem;
+  background: linear-gradient(135deg, #2d6cdf 0%, #1c47a8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 140ms ease;
+}
+
+.taskbar__start-session:hover,
+.taskbar__start-session:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+/* Control 2: "Ask Gus" input with adjacent microphone icon. */
+.taskbar__ask-gus {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.1rem 0.1rem 0.1rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+.taskbar__ask-gus-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.2rem;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 0.85rem;
+}
+
+.taskbar__ask-gus-input::placeholder {
+  color: rgba(230, 238, 252, 0.55);
+}
+
+.taskbar__ask-gus-input:focus-visible {
+  outline: none;
+}
+
+.taskbar__mic {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.taskbar__mic:hover:not(:disabled),
+.taskbar__mic:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+/* Requirement 5.5: visual feedback while listening for voice input. */
+.taskbar__mic[data-listening='true'] {
+  color: #ff6b6b;
+  animation: taskbar-mic-pulse 1s ease-in-out infinite;
+}
+
+/* Requirement 5.4: disabled appearance when voice is unsupported. */
+.taskbar__mic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes taskbar-mic-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+/* Control 3: Account Center button, Start Menu–style. */
+.taskbar__account-center {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.taskbar__account-center:hover,
+.taskbar__account-center:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  outline: none;
+}

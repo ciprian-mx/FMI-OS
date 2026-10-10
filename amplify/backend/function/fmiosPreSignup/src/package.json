@@ -1,0 +1,7 @@
+{
+  "name": "fmiosPreSignup",
+  "version": "1.0.0",
+  "description": "Cognito pre-sign-up trigger: restrict FMI OS registration to university email domains",
+  "main": "index.js",
+  "license": "Apache-2.0"
+}

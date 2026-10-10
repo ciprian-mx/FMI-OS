@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "serviceConfiguration": {
+    "serviceName": "AppSync",
+    "defaultAuthType": {
+      "mode": "AMAZON_COGNITO_USER_POOLS",
+      "cognitoUserPoolId": "authfmios"
+    },
+    "additionalAuthTypes": [],
+    "conflictResolution": {},
+    "apiName": "fmios",
+    "gqlSchemaPath": "amplify/backend/api/fmios/schema.graphql"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "lambdaLayers": [],
+  "permissions": {},
+  "trigger": true,
+  "triggerSource": "cognito",
+  "triggerEventType": "PreSignUp"
+}

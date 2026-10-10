@@ -1,0 +1,46 @@
+/* Full-viewport boot overlay shown before the Desktop Environment renders. */
+.boot-animation {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #10243f 0%, #060b14 100%);
+  cursor: pointer;
+  animation: boot-animation-fade-in 240ms ease-out;
+}
+
+.boot-animation__stage {
+  width: min(40vmin, 320px);
+  height: min(40vmin, 320px);
+}
+
+.boot-animation__skip {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  color: #e6eefc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.boot-animation__skip:hover,
+.boot-animation__skip:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+@keyframes boot-animation-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

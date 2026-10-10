@@ -1,0 +1,275 @@
+/* Future Examinations App timeline view (Task 6.2). */
+.future-exams {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 280px;
+  color: #e6eefc;
+  background: #0b1626;
+  font-size: 0.9rem;
+}
+
+.future-exams__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.future-exams__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* The title only receives programmatic focus (focus restoration fallback). */
+.future-exams__title:focus {
+  outline: none;
+}
+
+.future-exams__body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+
+.future-exams__button {
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #e6eefc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.future-exams__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.future-exams__button:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 2px;
+}
+
+.future-exams__button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.future-exams__button--primary {
+  background: rgba(90, 150, 255, 0.28);
+  border-color: rgba(138, 180, 255, 0.6);
+}
+
+.future-exams__button--danger {
+  color: #ffd0d0;
+  background: rgba(255, 154, 154, 0.12);
+  border-color: rgba(255, 154, 154, 0.5);
+}
+
+/* ---- Add / edit form ---------------------------------------------------- */
+
+.future-exams__form {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+
+.future-exams__form-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.future-exams__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+
+.future-exams__label {
+  font-size: 0.8rem;
+  color: #c7d4ea;
+}
+
+.future-exams__input {
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  color: #e6eefc;
+  background: #0f1e33;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  /* Dark native date/time picker to match the desktop theme. */
+  color-scheme: dark;
+}
+
+.future-exams__input:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 1px;
+}
+
+.future-exams__input[aria-invalid='true'] {
+  border-color: #ff9a9a;
+}
+
+.future-exams__textarea {
+  resize: vertical;
+}
+
+.future-exams__field-error,
+.future-exams__form-error,
+.future-exams__entry-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ff9a9a;
+}
+
+.future-exams__form-error {
+  margin-bottom: 0.5rem;
+}
+
+.future-exams__form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ---- Timeline ----------------------------------------------------------- */
+
+.future-exams__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.future-exams__entry {
+  position: relative;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid rgba(138, 180, 255, 0.6);
+  border-radius: 6px;
+}
+
+/* Timeline marker sitting on the vertical rail. */
+.future-exams__entry::before {
+  content: '';
+  position: absolute;
+  top: 0.85rem;
+  left: calc(-1rem - 9px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8ab4ff;
+  box-shadow: 0 0 0 3px #0b1626;
+}
+
+/* Urgency (Requirement 9.5): red accent + "Urgent" badge, never color alone. */
+.future-exams__entry--urgent {
+  background: rgba(255, 122, 122, 0.08);
+  border-left-color: #ff7a7a;
+}
+
+.future-exams__entry--urgent::before {
+  background: #ff7a7a;
+}
+
+.future-exams__entry--past {
+  color: #9fb0c8;
+  background: transparent;
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.future-exams__entry--past::before {
+  background: #5b6b85;
+}
+
+.future-exams__entry--invalid {
+  border-left-color: #d9c38a;
+}
+
+.future-exams__entry--editing {
+  box-shadow: 0 0 0 1px rgba(138, 180, 255, 0.7);
+}
+
+.future-exams__when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #c7d4ea;
+}
+
+.future-exams__countdown {
+  color: #8f9fba;
+}
+
+.future-exams__urgency {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #ffb4b4;
+  background: rgba(255, 122, 122, 0.18);
+  border-radius: 999px;
+}
+
+.future-exams__name {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.future-exams__subject {
+  margin: 0.1rem 0 0;
+  color: #c7d4ea;
+  overflow-wrap: anywhere;
+}
+
+.future-exams__notes {
+  margin: 0.35rem 0 0;
+  color: #8f9fba;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.future-exams__actions,
+.future-exams__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.future-exams__confirm-text {
+  font-size: 0.8rem;
+}
+
+.future-exams__entry-error {
+  margin-top: 0.5rem;
+}
+
+.future-exams__empty {
+  margin: 0;
+  color: #8f9fba;
+  font-size: 0.85rem;
+}
