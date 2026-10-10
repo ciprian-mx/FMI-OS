@@ -1,0 +1,15 @@
+{
+  "name": "materialIndexTrigger",
+  "version": "1.0.0",
+  "description": "S3 ObjectCreated trigger: tags FMI OS Materials uploads for the Bedrock Knowledge Base, syncs it and tracks MaterialFile.indexingStatus",
+  "main": "index.js",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agent": "3.1149.0",
+    "@aws-sdk/client-dynamodb": "3.1149.0",
+    "@aws-sdk/client-s3": "3.1149.0"
+  }
+}

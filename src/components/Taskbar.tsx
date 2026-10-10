@@ -5,10 +5,12 @@ import './Taskbar.css';
  * Props for the {@link Taskbar} component.
  *
  * These mirror the Taskbar interface in the design doc. The Taskbar is a pure
- * shell: it owns layout, the three controls, and the "Ask Gus" input text; it
- * does NOT own any of the behaviour behind the controls. Each control simply
- * invokes a callback so later tasks can wire real behaviour:
- *   - Voice capture / Web Speech API      → task 3.3 (VoiceCommandHandler)
+ * shell: it owns layout, the three controls, and (unless a parent controls it
+ * through `gusQuery`) the "Ask Gus" input text; it does NOT own any of the
+ * behaviour behind the controls. Each control simply invokes a callback so
+ * later tasks can wire real behaviour:
+ *   - Voice capture / Web Speech API      → task 3.3 (VoiceCommandHandler,
+ *     composed with this Taskbar by VoiceTaskbar)
  *   - Account Center panel                → task 3.5 (AccountCenter)
  *   - Gus chat panel + session generation → tasks 11.3 / 16.3
  *
@@ -53,7 +55,28 @@ export interface TaskbarProps {
    * on the mic icon. Defaults to false.
    */
   isListening?: boolean;
+  /**
+   * Controlled value of the "Ask Gus" input. When set, the Taskbar shows this
+   * text and reports edits through `onGusQueryChange` instead of keeping its
+   * own draft, so a parent can populate the input, e.g. with a voice
+   * transcription (Requirement 5.2). Leave undefined for the built-in draft.
+   */
+  gusQuery?: string;
+  /**
+   * Called with the new "Ask Gus" text on every edit, and with '' once a query
+   * has been submitted (the Taskbar clears the input after a submit).
+   */
+  onGusQueryChange?: (value: string) => void;
+  /** Ref to the "Ask Gus" input element, e.g. to focus it after a transcription. */
+  gusInputRef?: React.Ref<HTMLInputElement>;
+  /**
+   * Placeholder of the "Ask Gus" input. Defaults to "Ask Gus…". Voice input
+   * uses it for the listening prompt, interim words and failure messages.
+   */
+  gusPlaceholder?: string;
 }
+
+const DEFAULT_GUS_PLACEHOLDER = 'Ask Gus…';
 
 /**
  * Taskbar renders the persistent bottom bar of the Desktop Environment
@@ -67,9 +90,10 @@ export interface TaskbarProps {
  *   3. Account Center button (Start Menu–style)
  *
  * Deliberately out of scope (separate tasks): the Web Speech API voice capture
- * (3.3), the Account Center panel (3.5), and the Gus chat panel / session
- * generation (11.3, 16.3). Each control is wired only to a callback prop so
- * those tasks have clean extension points.
+ * (3.3, see VoiceCommandHandler / VoiceTaskbar), the Account Center panel
+ * (3.5), and the Gus chat panel / session generation (11.3, 16.3). Each
+ * control is wired only to a callback prop so those tasks have clean extension
+ * points.
  */
 const Taskbar: React.FC<TaskbarProps> = ({
   onStartSession,
@@ -78,19 +102,36 @@ const Taskbar: React.FC<TaskbarProps> = ({
   onAccountCenterOpen,
   isVoiceSupported = true,
   isListening = false,
+  gusQuery,
+  onGusQueryChange,
+  gusInputRef,
+  gusPlaceholder = DEFAULT_GUS_PLACEHOLDER,
 }) => {
-  // The Taskbar owns only the draft text of the "Ask Gus" input. The query is
-  // handed off to onGusQuery on submit; the response/chat UI lives elsewhere.
-  const [gusQuery, setGusQuery] = useState('');
+  // The Taskbar owns only the draft text of the "Ask Gus" input, and only
+  // while no parent controls it through `gusQuery`. The query is handed off to
+  // onGusQuery on submit; the response/chat UI lives elsewhere.
+  const [draftQuery, setDraftQuery] = useState('');
+  const isControlled = gusQuery !== undefined;
+  const currentQuery = gusQuery ?? draftQuery;
+
+  const updateQuery = useCallback(
+    (value: string) => {
+      if (!isControlled) {
+        setDraftQuery(value);
+      }
+      onGusQueryChange?.(value);
+    },
+    [isControlled, onGusQueryChange]
+  );
 
   const submitGusQuery = useCallback(() => {
-    const trimmed = gusQuery.trim();
+    const trimmed = currentQuery.trim();
     if (!trimmed) {
       return;
     }
     onGusQuery?.(trimmed);
-    setGusQuery('');
-  }, [gusQuery, onGusQuery]);
+    updateQuery('');
+  }, [currentQuery, onGusQuery, updateQuery]);
 
   // Requirement 4.4: submitting the "Ask Gus" input happens on Enter.
   const handleGusKeyDown = useCallback(
@@ -132,13 +173,14 @@ const Taskbar: React.FC<TaskbarProps> = ({
       {/* Control 2: "Ask Gus" input with an adjacent microphone icon. */}
       <div className="taskbar__ask-gus" data-testid="taskbar-ask-gus">
         <input
+          ref={gusInputRef}
           type="text"
           className="taskbar__ask-gus-input"
           data-testid="taskbar-ask-gus-input"
           aria-label="Ask Gus"
-          placeholder="Ask Gus…"
-          value={gusQuery}
-          onChange={(event) => setGusQuery(event.target.value)}
+          placeholder={gusPlaceholder}
+          value={currentQuery}
+          onChange={(event) => updateQuery(event.target.value)}
           onKeyDown={handleGusKeyDown}
         />
         <button

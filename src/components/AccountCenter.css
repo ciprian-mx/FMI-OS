@@ -1,0 +1,284 @@
+/*
+ * Account Center panel (Requirement 6).
+ *
+ * A Start Menu–style popover anchored above the Taskbar's Account Center
+ * button (bottom-right). Fixed positioning and a high z-index keep it above
+ * desktop windows, whose z-indexes grow as they are focused.
+ */
+.account-center {
+  position: fixed;
+  right: 12px;
+  bottom: 60px; /* clears the 48px Taskbar */
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 84px);
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1rem;
+  box-sizing: border-box;
+  background: #0f1f36;
+  color: #e6eefc;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  font-size: 0.85rem;
+  /* The desktop disables selection; the panel's text (e.g. a new key) must be selectable. */
+  user-select: text;
+}
+
+/* The container is only a programmatic focus target on open. */
+.account-center:focus {
+  outline: none;
+}
+
+.account-center__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.account-center__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.account-center__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.account-center__close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.account-center__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.account-center__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.account-center__section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.account-center__form,
+.account-center__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.account-center__form {
+  gap: 0.6rem;
+}
+
+.account-center__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(230, 238, 252, 0.85);
+}
+
+.account-center__input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+}
+
+.account-center__input--readonly {
+  background: transparent;
+  border-style: dashed;
+  color: rgba(230, 238, 252, 0.85);
+}
+
+.account-center__input[aria-invalid='true'] {
+  border-color: #ff8a80;
+}
+
+.account-center__key-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.account-center__key-value {
+  flex: 1 1 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.account-center__key-masked {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.1em;
+  color: rgba(230, 238, 252, 0.85);
+}
+
+.account-center__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(230, 238, 252, 0.7);
+}
+
+.account-center__hint--warning {
+  color: #ffd479;
+}
+
+.account-center__badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.account-center__badge--active {
+  background: rgba(76, 175, 80, 0.25);
+  color: #b9f6ca;
+}
+
+.account-center__field-error,
+.account-center__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #ff8a80;
+}
+
+.account-center__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/*
+ * Polite live region. It stays rendered (empty when idle) so announcements are
+ * reliable, and sits in an actions row so an empty region adds no blank line.
+ */
+.account-center__status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b9f6ca;
+}
+
+.account-center__button {
+  padding: 0.4rem 0.85rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, filter 140ms ease;
+}
+
+.account-center__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.account-center__button--primary {
+  background: linear-gradient(135deg, #2d6cdf 0%, #1c47a8 100%);
+  color: #ffffff;
+}
+
+.account-center__button--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2d6cdf 0%, #1c47a8 100%);
+  filter: brightness(1.1);
+}
+
+.account-center__button--danger {
+  background: #b3261e;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.account-center__button--danger:hover:not(:disabled) {
+  background: #c8372e;
+}
+
+.account-center__button--logout {
+  width: 100%;
+}
+
+.account-center__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Keyboard focus stays clearly visible on every control. */
+.account-center__close:focus-visible,
+.account-center__button:focus-visible,
+.account-center__input:focus-visible {
+  outline: 2px solid #78b4ff;
+  outline-offset: 2px;
+}
+
+.account-center__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: rgba(179, 38, 30, 0.14);
+  border: 1px solid rgba(255, 138, 128, 0.45);
+  border-radius: 8px;
+}
+
+.account-center__confirm-text {
+  margin: 0;
+}
+
+.account-center__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.account-center__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-center__button {
+    transition: none;
+  }
+}

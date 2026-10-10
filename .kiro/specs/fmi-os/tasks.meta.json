@@ -18,7 +18,7 @@
     },
     "2.8 Write property test for responsive layout invariant (Property 6)": {
       "status": "passed",
-      "lastRunTimestamp": 1791645888120
+      "lastRunTimestamp": 1791659424885
     },
     "2.5 Write property test for desktop window management independence (Property 4)": {
       "status": "passed",
@@ -27,6 +27,14 @@
     "3.2 Write property test for Taskbar persistent visibility (Property 7)": {
       "status": "passed",
       "lastRunTimestamp": 1791657543144
+    },
+    "6.4 Write property test for exam urgency highlighting (Property 13)": {
+      "status": "passed",
+      "lastRunTimestamp": 1791660939719
+    },
+    "6.3 Write property test for exam timeline chronological ordering (Property 12)": {
+      "status": "passed",
+      "lastRunTimestamp": 1791661075271
     }
   },
   "executionHistory": {
@@ -410,6 +418,11 @@
         "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791652947432
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659506610
       }
     ],
     "2.9 Checkpoint — verify desktop shell and boot sequence": [
@@ -476,6 +489,11 @@
         "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791652948957
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659507035
       }
     ],
     "3.3 Implement VoiceCommandHandler with Web Speech API": [
@@ -493,6 +511,11 @@
         "executionId": "29571fff-63b4-44b2-9b08-c8837929a8dd",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791646351481
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659580801
       }
     ],
     "3.4 Write property test for voice transcription accuracy propagation (Property 27)": [
@@ -527,6 +550,11 @@
         "executionId": "29571fff-63b4-44b2-9b08-c8837929a8dd",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791646351579
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659581710
       }
     ],
     "3.6 Write property test for Account Center close triggers (Property 26)": [
@@ -837,6 +865,11 @@
         "executionId": "29571fff-63b4-44b2-9b08-c8837929a8dd",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791646352085
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659583074
       }
     ],
     "6.4 Write property test for exam urgency highlighting (Property 13)": [
@@ -854,6 +887,11 @@
         "executionId": "29571fff-63b4-44b2-9b08-c8837929a8dd",
         "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
         "timestamp": 1791646352139
+      },
+      {
+        "executionId": "1ec5d3c0-f974-4b75-801d-aba343c4dc0a",
+        "chatSessionId": "sess_44e8d954-7ec1-44eb-99f8-11eb974c5982",
+        "timestamp": 1791659585258
       }
     ],
     "7.1 Implement CalendarApp with dual integration mode": [

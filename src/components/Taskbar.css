@@ -117,6 +117,17 @@
   }
 }
 
+/*
+ * Students who ask for reduced motion still get a listening cue: the red mic
+ * and the "Listening…" prompt in the input, without the pulse. (A user
+ * preference query, not a viewport one.)
+ */
+@media (prefers-reduced-motion: reduce) {
+  .taskbar__mic[data-listening='true'] {
+    animation: none;
+  }
+}
+
 /* Control 3: Account Center button, Start Menu–style. */
 .taskbar__account-center {
   flex: 0 0 auto;

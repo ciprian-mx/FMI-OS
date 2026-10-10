@@ -20,19 +20,20 @@ import Taskbar from './Taskbar';
  *
  * jsdom has no layout engine (measured geometry such as getBoundingClientRect
  * or scrollWidth is always 0), and Jest stubs CSS imports. So the components'
- * real stylesheets are mounted into the document, and computed styles (and with
- * them `toBeVisible`) follow those rules. On that basis, at every W:
+ * real stylesheets are mounted into the document, and computed styles follow
+ * their rules. On that basis, at every W:
  *   - No horizontal overflow: the shell is pinned to the viewport, exactly W
  *     wide, and clips horizontal overflow, so the page can never scroll
  *     sideways. No element in the desktop declares a width, min-width or offset
  *     (resolved at W) that reaches past either edge of the viewport, where it
  *     would be clipped. This holds before and after every app window is open.
  *   - Icons: all six are visible, enabled buttons showing their glyph and
- *     label. Nothing disables pointer events on them, the window layer above
- *     them lets clicks through, and clicking each one opens its window.
- *   - Taskbar: the bar and its three controls are visible and enabled, and
- *     each control works: "Start today's session", "Ask Gus" + Enter, the
- *     microphone, and the Account Center button.
+ *     label. Clicking each one opens its window, and with every window open
+ *     the icons still take clicks: the window layer above them lets clicks
+ *     through, and nothing resolves their pointer-events to `none`.
+ *   - Taskbar: the bar and its three controls are visible, enabled and take
+ *     clicks, and each control works: "Start today's session", "Ask Gus" +
+ *     Enter, the microphone, and the Account Center button.
  *
  * jsdom ignores viewport @media rules, so mounting the stylesheets fails if one
  * gains such a rule: the test could not see it at the generated widths.
@@ -111,6 +112,34 @@ function mountStylesheets(): HTMLStyleElement[] {
   });
 }
 
+type StyleOf = (el: Element) => CSSStyleDeclaration;
+
+/**
+ * getComputedStyle, memoized for one DOM snapshot. jsdom's version is slow:
+ * every call re-matches its whole default stylesheet against the element and,
+ * to resolve `visibility`, against each ancestor. Reading each element once
+ * keeps the runs fast. Take a new reader after the DOM changes.
+ */
+function styleReader(): StyleOf {
+  const cache = new Map<Element, CSSStyleDeclaration>();
+  return (el) => {
+    let style = cache.get(el);
+    if (!style) {
+      style = getComputedStyle(el);
+      cache.set(el, style);
+    }
+    return style;
+  };
+}
+
+/** A readable name for an element in failure messages. */
+function describeElement(el: Element): string {
+  return (
+    el.getAttribute('data-testid') ??
+    `${el.tagName.toLowerCase()}.${el.className} "${el.textContent ?? ''}"`
+  );
+}
+
 /**
  * A declared CSS length in px at viewport width W, or null when it is not a
  * plain length (auto, calc(), min(), ...). Percentages resolve against W, an
@@ -154,13 +183,12 @@ function horizontalOffsets(
 }
 
 /** The shell is pinned to the viewport, exactly W wide, and clips horizontal overflow. */
-function expectViewportBoundShell(shell: HTMLElement, viewportWidth: number): void {
-  const style = getComputedStyle(shell);
+function expectViewportBoundShell(style: CSSStyleDeclaration, viewportWidth: number): void {
   expect(style.position).toBe('fixed');
   expect(horizontalOffsets(style, viewportWidth)).toEqual({ left: 0, right: 0 });
   expect(toPx(style.width, viewportWidth)).toBe(viewportWidth);
   // overflow-x, or the first value of the `overflow` shorthand.
-  expect(['hidden', 'clip']).toContain(style.overflowX || style.overflow.split(/\s+/)[0]);
+  expect(style.overflowX || style.overflow.split(/\s+/)[0]).toMatch(/^(hidden|clip)$/);
 }
 
 /**
@@ -169,10 +197,14 @@ function expectViewportBoundShell(shell: HTMLElement, viewportWidth: number): vo
  * containers (shell, surface, window layer, taskbar slot) all start at the
  * viewport's left edge, so offsets are measured against [0, W].
  */
-function horizontalOverflowOffenders(root: HTMLElement, viewportWidth: number): string[] {
+function horizontalOverflowOffenders(
+  root: Element,
+  viewportWidth: number,
+  styleOf: StyleOf
+): string[] {
   const offenders: string[] = [];
-  for (const el of [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))]) {
-    const style = getComputedStyle(el);
+  for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
+    const style = styleOf(el);
     const span = Math.max(
       toPx(style.width, viewportWidth) ?? 0,
       toPx(style.minWidth, viewportWidth) ?? 0
@@ -181,25 +213,59 @@ function horizontalOverflowOffenders(root: HTMLElement, viewportWidth: number): 
     const fits = (offset: number | null): boolean =>
       offset === null || (offset >= 0 && offset + span <= viewportWidth);
     if (span > viewportWidth || !fits(left) || !fits(right)) {
-      const name = el.dataset.testid ?? (el.className || el.tagName.toLowerCase());
-      offenders.push(`${name}: span ${span}px, left ${left ?? 'auto'}, right ${right ?? 'auto'}`);
+      offenders.push(
+        `${describeElement(el)}: span ${span}px, left ${left ?? 'auto'}, right ${right ?? 'auto'}`
+      );
     }
   }
   return offenders;
 }
 
 /**
- * The pointer-events value in effect for an element (the property inherits).
- * userEvent refuses to click when it is `none`; fireEvent skips that check.
+ * Elements that are not visible: hidden by display, visibility, opacity or the
+ * `hidden` attribute, on themselves or on any ancestor. These are jest-dom's
+ * toBeVisible rules (the desktop has no <details>), read through the memoized
+ * styles instead of toBeVisible's fresh getComputedStyle per ancestor.
  */
-function effectivePointerEvents(el: Element): string {
-  for (let node: Element | null = el; node; node = node.parentElement) {
-    const value = getComputedStyle(node).pointerEvents;
-    if (value && value !== 'inherit' && value !== 'unset') {
-      return value;
+function hiddenElements(elements: Element[], styleOf: StyleOf): string[] {
+  const hidesItself = (node: Element): boolean => {
+    const { display, visibility, opacity } = styleOf(node);
+    return (
+      node.hasAttribute('hidden') ||
+      display === 'none' ||
+      visibility === 'hidden' ||
+      visibility === 'collapse' ||
+      opacity === '0'
+    );
+  };
+  return elements
+    .filter((el) => {
+      for (let node: Element | null = el; node; node = node.parentElement) {
+        if (hidesItself(node)) {
+          return true;
+        }
+      }
+      return false;
+    })
+    .map(describeElement);
+}
+
+/**
+ * Elements whose pointer-events resolve to `none` (the property inherits), so
+ * they cannot take clicks. userEvent refuses to click them; fireEvent does not
+ * check, so the tests check explicitly.
+ */
+function unclickableElements(elements: Element[], styleOf: StyleOf): string[] {
+  const pointerEventsOf = (el: Element): string => {
+    for (let node: Element | null = el; node; node = node.parentElement) {
+      const value = styleOf(node).pointerEvents;
+      if (value && value !== 'inherit' && value !== 'unset') {
+        return value;
+      }
     }
-  }
-  return 'auto';
+    return 'auto';
+  };
+  return elements.filter((el) => pointerEventsOf(el) === 'none').map(describeElement);
 }
 
 describe('Feature: fmi-os, Property 6: Responsive Layout Invariant', () => {
@@ -225,37 +291,46 @@ describe('Feature: fmi-os, Property 6: Responsive Layout Invariant', () => {
         render(<DesktopEnvironment taskbarSlot={<Taskbar />} />);
 
         try {
+          const styleOf = styleReader();
+
           // No horizontal overflow: the shell bounds the page to the viewport,
           // and nothing inside it reaches past the viewport's edges.
           const shell = screen.getByTestId('desktop-environment');
-          expectViewportBoundShell(shell, viewportWidth);
-          expect(horizontalOverflowOffenders(shell, viewportWidth)).toEqual([]);
+          expectViewportBoundShell(styleOf(shell), viewportWidth);
+          expect(horizontalOverflowOffenders(shell, viewportWidth, styleOf)).toEqual([]);
 
-          // The desktop and all six icons are visible; each icon is an enabled
-          // button showing its glyph and label.
-          const surface = screen.getByTestId('desktop-surface');
-          expect(shell).toBeVisible();
-          expect(surface).toBeVisible();
+          // All six icons are enabled buttons showing their glyph and label.
+          const surface = within(shell).getByTestId('desktop-surface');
           expect(within(surface).getAllByTestId(/^desktop-icon-/)).toHaveLength(
             DEFAULT_DESKTOP_APPS.length
           );
-          for (const app of DEFAULT_DESKTOP_APPS) {
+          const iconParts = DEFAULT_DESKTOP_APPS.flatMap((app) => {
             const icon = within(surface).getByTestId(`desktop-icon-${app.id}`);
             expect(icon.tagName).toBe('BUTTON');
-            expect(icon).toBeVisible();
             expect(icon).toBeEnabled();
-            expect(within(icon).getByText(app.glyph)).toBeVisible();
-            expect(within(icon).getByText(app.name)).toBeVisible();
-          }
+            return [icon, within(icon).getByText(app.glyph), within(icon).getByText(app.name)];
+          });
 
-          // The Taskbar and all three of its controls are visible and enabled.
-          expect(screen.getByTestId('desktop-taskbar-slot')).toBeVisible();
-          expect(screen.getByTestId('taskbar')).toBeVisible();
-          for (const controlId of TASKBAR_CONTROL_IDS) {
-            const control = screen.getByTestId(controlId);
-            expect(control).toBeVisible();
-            expect(control).toBeEnabled();
-          }
+          // The Taskbar's three controls are enabled.
+          const taskbar = screen.getByTestId('taskbar');
+          const controls = TASKBAR_CONTROL_IDS.map((id) => within(taskbar).getByTestId(id));
+          controls.forEach((control) => expect(control).toBeEnabled());
+
+          // ...and the desktop, every icon part, the Taskbar and its controls
+          // are visible.
+          expect(
+            hiddenElements(
+              [
+                shell,
+                surface,
+                ...iconParts,
+                screen.getByTestId('desktop-taskbar-slot'),
+                taskbar,
+                ...controls,
+              ],
+              styleOf
+            )
+          ).toEqual([]);
         } finally {
           cleanup();
         }
@@ -286,34 +361,30 @@ describe('Feature: fmi-os, Property 6: Responsive Layout Invariant', () => {
         );
 
         try {
-          // The window layer covers the desktop above the icons, so it must let
-          // clicks through to them (jsdom cannot hit-test; check the rule).
-          expect(getComputedStyle(screen.getByTestId('desktop-window-layer')).pointerEvents).toBe(
-            'none'
-          );
-
-          // Every icon is reachable and opens its window when clicked.
+          // Every icon opens its window when clicked.
           for (const appId of clickOrder) {
             expect(screen.queryByTestId(`window-${appId}`)).not.toBeInTheDocument();
-            const icon = screen.getByTestId(`desktop-icon-${appId}`);
-            expect(effectivePointerEvents(icon)).not.toBe('none');
-            fireEvent.click(icon);
-
-            const openedWindow = screen.getByTestId(`window-${appId}`);
-            expect(openedWindow).toBeInTheDocument();
-            expect(openedWindow).toBeVisible();
+            fireEvent.click(screen.getByTestId(`desktop-icon-${appId}`));
+            expect(screen.getByTestId(`window-${appId}`)).toBeInTheDocument();
           }
 
-          // With every window open, nothing reaches past the viewport's edges.
-          expect(
-            horizontalOverflowOffenders(screen.getByTestId('desktop-environment'), viewportWidth)
-          ).toEqual([]);
+          // With every window open, the windows are visible and nothing reaches
+          // past the viewport's edges.
+          const styleOf = styleReader();
+          const shell = screen.getByTestId('desktop-environment');
+          const windows = APP_IDS.map((appId) => screen.getByTestId(`window-${appId}`));
+          expect(hiddenElements(windows, styleOf)).toEqual([]);
+          expect(horizontalOverflowOffenders(shell, viewportWidth, styleOf)).toEqual([]);
 
-          // Every Taskbar control is reachable and does its job.
-          for (const controlId of TASKBAR_CONTROL_IDS) {
-            expect(effectivePointerEvents(screen.getByTestId(controlId))).not.toBe('none');
-          }
+          // The icons and Taskbar controls still take clicks. The window layer
+          // covers the desktop above the icons, so it must let clicks through
+          // (jsdom cannot hit-test, so this checks the rule that does it).
+          expect(styleOf(screen.getByTestId('desktop-window-layer')).pointerEvents).toBe('none');
+          const icons = APP_IDS.map((appId) => screen.getByTestId(`desktop-icon-${appId}`));
+          const controls = TASKBAR_CONTROL_IDS.map((id) => screen.getByTestId(id));
+          expect(unclickableElements([...icons, ...controls], styleOf)).toEqual([]);
 
+          // Every Taskbar control does its job.
           fireEvent.click(screen.getByTestId('taskbar-start-session'));
           expect(onStartSession).toHaveBeenCalledTimes(1);
 

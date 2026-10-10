@@ -86,7 +86,7 @@ Incremental build of the FMI OS desktop learning environment: AWS Amplify projec
     - Generate random desktop states; persist and restore; assert restored state matches original (window positions, sizes, open apps, focus).
     - **Validates: Requirements 3.5**
 
-  - [-] 2.8 Write property test for responsive layout invariant (Property 6)
+  - [x] 2.8 Write property test for responsive layout invariant (Property 6)
     - **Property 6: Responsive Layout Invariant**
     - Generate viewport widths in [1024, 3840]; render DesktopEnvironment; assert no horizontal overflow and all UI elements visible.
     - **Validates: Requirements 3.6**
@@ -100,12 +100,12 @@ Incremental build of the FMI OS desktop learning environment: AWS Amplify projec
     - Render "Start today's session" button, "Ask Gus" text input + microphone icon, Account Center icon.
     - _Requirements: 4.1, 4.2_
 
-  - [-] 3.2 Write property test for Taskbar persistent visibility (Property 7)
+  - [x] 3.2 Write property test for Taskbar persistent visibility (Property 7)
     - **Property 7: Taskbar Persistent Visibility**
     - Generate arbitrary desktop states (open panels, routes); render; assert Taskbar and all three controls are present and actionable.
     - **Validates: Requirements 4.1**
 
-  - [~] 3.3 Implement VoiceCommandHandler with Web Speech API
+  - [-] 3.3 Implement VoiceCommandHandler with Web Speech API
     - Activate on microphone icon click; transcribe speech to text using `SpeechRecognition` API.
     - Populate "Ask Gus" input with transcription, or trigger session start if phrase matches "Start today's session".
     - Provide visual feedback (animated mic icon) while listening; disable mic icon with tooltip if API unavailable.
@@ -116,7 +116,7 @@ Incremental build of the FMI OS desktop learning environment: AWS Amplify projec
     - Generate random transcription strings; mock Web Speech API; assert input field receives exact transcription with no modifications.
     - **Validates: Requirements 5.2**
 
-  - [~] 3.5 Implement AccountCenter panel component
+  - [-] 3.5 Implement AccountCenter panel component
     - Display student email (read-only), display name (editable), API key management section (view/regenerate/delete).
     - Provide logout button; close on outside click or Escape key.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
@@ -194,12 +194,12 @@ Incremental build of the FMI OS desktop learning environment: AWS Amplify projec
     - Add/edit/delete controls for examination entries.
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
 
-  - [~] 6.3 Write property test for exam timeline chronological ordering (Property 12)
+  - [-] 6.3 Write property test for exam timeline chronological ordering (Property 12)
     - **Property 12: Exam Timeline Chronological Ordering**
     - Generate random examination sets; render timeline; assert exams appear in strictly chronological order by date.
     - **Validates: Requirements 9.1**
 
-  - [~] 6.4 Write property test for exam urgency highlighting (Property 13)
+  - [-] 6.4 Write property test for exam urgency highlighting (Property 13)
     - **Property 13: Exam Urgency Highlighting**
     - Generate examinations with various dates; assert exams with (date - today) ≤ 7 days display urgency indicator.
     - **Validates: Requirements 9.5**

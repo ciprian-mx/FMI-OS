@@ -159,10 +159,13 @@ export function isUrgent(
   windowDays: number = URGENCY_WINDOW_DAYS
 ): boolean {
   const remaining = daysUntil(exam.date, now);
-  if (Number.isNaN(remaining)) {
+  // Rule out past exams on the instant, not on `remaining >= 0`: `daysUntil`
+  // rounds up, so an exam that ended under a day ago has `remaining === -0`,
+  // which `>= 0` accepts (it would render as both Past and Urgent).
+  if (Number.isNaN(remaining) || isPast(exam, now)) {
     return false;
   }
-  return remaining >= 0 && remaining <= windowDays;
+  return remaining <= windowDays;
 }
 
 /**
