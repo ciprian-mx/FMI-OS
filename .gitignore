@@ -42,3 +42,6 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
+
+# Compiled Lambda cores (generated from src/backend/<fn> by amplify/scripts/build-functions.js)
+amplify/backend/function/*/src/core/

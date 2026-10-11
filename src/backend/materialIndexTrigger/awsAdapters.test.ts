@@ -66,6 +66,7 @@ function s3Sdk(respond: Responder) {
       client,
       HeadObjectCommand: commandClass('HeadObjectCommand'),
       PutObjectCommand: commandClass('PutObjectCommand'),
+      DeleteObjectCommand: commandClass('DeleteObjectCommand'),
     },
   };
 }
@@ -92,6 +93,7 @@ function bedrockSdk(respond: Responder) {
       GetIngestionJobCommand: commandClass('GetIngestionJobCommand'),
       ListIngestionJobsCommand: commandClass('ListIngestionJobsCommand'),
       GetKnowledgeBaseDocumentsCommand: commandClass('GetKnowledgeBaseDocumentsCommand'),
+      DeleteKnowledgeBaseDocumentsCommand: commandClass('DeleteKnowledgeBaseDocumentsCommand'),
     },
   };
 }
@@ -130,6 +132,19 @@ describe('S3 object store adapter', () => {
         input: { Bucket: 'bucket', Key: 'k.metadata.json', Body: '{}', ContentType: 'application/json' },
       },
     ]);
+  });
+
+  it('deletes the sidecar with DeleteObject and rethrows its errors (task 4.1)', async () => {
+    const { client, sdk } = s3Sdk(() => ({}));
+
+    await createS3ObjectStore(sdk).deleteObject('bucket', 'k.metadata.json');
+
+    expect(client.sent).toEqual([
+      { name: 'DeleteObjectCommand', input: { Bucket: 'bucket', Key: 'k.metadata.json' } },
+    ]);
+    await expect(
+      createS3ObjectStore(s3Sdk(() => awsError('AccessDenied', 403)).sdk).deleteObject('b', 'k')
+    ).rejects.toThrow('AccessDenied');
   });
 });
 
@@ -183,13 +198,14 @@ describe('DynamoDB MaterialFile repository adapter', () => {
     expect(client.sent[1].input.ExclusiveStartKey).toEqual({ id: { S: 'file-1' }, studentId: { S: 'sub-1' } });
   });
 
-  it('updates the status of an existing record only', async () => {
+  it('updates the status of an existing record that still points at the key only', async () => {
     const { client, sdk } = dynamoSdk(() => ({}));
 
     const updated = await createDynamoMaterialFileRepository(sdk, TABLE).updateIndexingStatus(
       'file-1',
       'INDEXING',
-      '2024-05-01T12:00:00.000Z'
+      '2024-05-01T12:00:00.000Z',
+      'private/id/materials/a.pdf'
     );
 
     expect(updated).toBe(true);
@@ -200,26 +216,33 @@ describe('DynamoDB MaterialFile repository adapter', () => {
           TableName: 'MaterialFile-abc123-dev',
           Key: { id: { S: 'file-1' } },
           UpdateExpression: 'SET #indexingStatus = :status, #updatedAt = :updatedAt',
-          ConditionExpression: 'attribute_exists(#id)',
-          ExpressionAttributeNames: { '#id': 'id', '#indexingStatus': 'indexingStatus', '#updatedAt': 'updatedAt' },
+          // Task 4.1: a record moved/renamed while indexing must not get this run's verdict.
+          ConditionExpression: 'attribute_exists(#id) AND #s3Key = :s3Key',
+          ExpressionAttributeNames: {
+            '#id': 'id',
+            '#s3Key': 's3Key',
+            '#indexingStatus': 'indexingStatus',
+            '#updatedAt': 'updatedAt',
+          },
           ExpressionAttributeValues: {
             ':status': { S: 'INDEXING' },
             ':updatedAt': { S: '2024-05-01T12:00:00.000Z' },
+            ':s3Key': { S: 'private/id/materials/a.pdf' },
           },
         },
       },
     ]);
   });
 
-  it('reports a deleted record as not updated and rethrows other errors', async () => {
+  it('reports a deleted (or re-pointed) record as not updated and rethrows other errors', async () => {
     const deleted = dynamoSdk(() => awsError('ConditionalCheckFailedException', 400));
     await expect(
-      createDynamoMaterialFileRepository(deleted.sdk, TABLE).updateIndexingStatus('gone', 'INDEXED', 'now')
+      createDynamoMaterialFileRepository(deleted.sdk, TABLE).updateIndexingStatus('gone', 'INDEXED', 'now', 'k')
     ).resolves.toBe(false);
 
     const throttled = dynamoSdk(() => awsError('ProvisionedThroughputExceededException', 400));
     await expect(
-      createDynamoMaterialFileRepository(throttled.sdk, TABLE).updateIndexingStatus('file-1', 'INDEXED', 'now')
+      createDynamoMaterialFileRepository(throttled.sdk, TABLE).updateIndexingStatus('file-1', 'INDEXED', 'now', 'k')
     ).rejects.toThrow('ProvisionedThroughputExceededException');
   });
 });
@@ -330,5 +353,61 @@ describe('Bedrock Knowledge Base adapter', () => {
         documentIdentifiers: [{ dataSourceType: 'S3', s3: { uri: 's3://b/private/id/materials/a b.pdf' } }],
       },
     });
+  });
+});
+
+/**
+ * Task 4.1 — direct Knowledge Base deletion for removed Materials documents.
+ *
+ * Validates: Requirements 7.8
+ */
+describe('Bedrock Knowledge Base adapter — direct document deletion', () => {
+  const URI = 's3://b/private/id/materials/Week 3/a b.pdf';
+
+  it('deletes one S3 document by URI and returns the status Bedrock reports', async () => {
+    const { client, sdk } = bedrockSdk(() => ({ documentDetails: [{ status: 'DELETING' }] }));
+
+    await expect(createBedrockKnowledgeBase(sdk, DATA_SOURCE).deleteDocument(URI)).resolves.toEqual({
+      outcome: 'accepted',
+      status: 'DELETING',
+    });
+    expect(client.sent).toEqual([
+      {
+        name: 'DeleteKnowledgeBaseDocumentsCommand',
+        input: { ...DATA_SOURCE, documentIdentifiers: [{ dataSourceType: 'S3', s3: { uri: URI } }] },
+      },
+    ]);
+  });
+
+  it('reports an accepted deletion without document details as status null', async () => {
+    const { sdk } = bedrockSdk(() => ({}));
+    await expect(createBedrockKnowledgeBase(sdk, DATA_SOURCE).deleteDocument(URI)).resolves.toEqual({
+      outcome: 'accepted',
+      status: null,
+    });
+  });
+
+  it.each(BUSY_ERROR_NAMES)('reports %s from DeleteKnowledgeBaseDocuments as busy', async (name) => {
+    const { sdk } = bedrockSdk(() => awsError(name));
+    await expect(createBedrockKnowledgeBase(sdk, DATA_SOURCE).deleteDocument(URI)).resolves.toEqual({
+      outcome: 'busy',
+      reason: name,
+    });
+  });
+
+  it('maps ResourceNotFoundException to not-found and ValidationException to rejected', async () => {
+    await expect(
+      createBedrockKnowledgeBase(bedrockSdk(() => awsError('ResourceNotFoundException')).sdk, DATA_SOURCE).deleteDocument(URI)
+    ).resolves.toEqual({ outcome: 'not-found', reason: 'ResourceNotFoundException' });
+    await expect(
+      createBedrockKnowledgeBase(bedrockSdk(() => awsError('ValidationException')).sdk, DATA_SOURCE).deleteDocument(URI)
+    ).resolves.toEqual({ outcome: 'rejected', reason: 'ValidationException: ValidationException raised' });
+  });
+
+  it('rethrows other errors, such as a missing IAM permission', async () => {
+    const { sdk } = bedrockSdk(() => awsError('AccessDeniedException'));
+    await expect(createBedrockKnowledgeBase(sdk, DATA_SOURCE).deleteDocument(URI)).rejects.toThrow(
+      'AccessDeniedException'
+    );
   });
 });

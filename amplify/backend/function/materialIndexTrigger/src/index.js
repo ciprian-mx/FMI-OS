@@ -1,8 +1,9 @@
 'use strict';
 
 /**
- * materialIndexTrigger: S3 ObjectCreated trigger for FMI OS Materials
- * (Task 4.6, Requirement 7.6).
+ * materialIndexTrigger: S3 ObjectCreated / ObjectRemoved trigger for FMI OS
+ * Materials (Task 4.6, Requirement 7.6; deletion propagation: Task 4.1,
+ * Requirement 7.8).
  *
  * Composition root only. It builds the AWS SDK v3 clients and hands them to the
  * tested TypeScript core in src/backend/materialIndexTrigger/, compiled to
@@ -10,7 +11,12 @@
  * amplify/hooks/pre-push.js). See amplify/README.md, "Backend function
  * convention".
  */
-const { S3Client, HeadObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const {
+  S3Client,
+  HeadObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} = require('@aws-sdk/client-s3');
 const { DynamoDBClient, QueryCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const {
   BedrockAgentClient,
@@ -18,6 +24,7 @@ const {
   GetIngestionJobCommand,
   ListIngestionJobsCommand,
   GetKnowledgeBaseDocumentsCommand,
+  DeleteKnowledgeBaseDocumentsCommand,
 } = require('@aws-sdk/client-bedrock-agent');
 
 const { createLambdaHandler } = loadCore();
@@ -30,7 +37,7 @@ exports.handler = async (event, context) => {
     handleS3Event = createLambdaHandler({
       env: process.env,
       sdk: {
-        s3: { client: new S3Client({}), HeadObjectCommand, PutObjectCommand },
+        s3: { client: new S3Client({}), HeadObjectCommand, PutObjectCommand, DeleteObjectCommand },
         dynamodb: { client: new DynamoDBClient({}), QueryCommand, UpdateItemCommand },
         bedrockAgent: {
           client: new BedrockAgentClient({}),
@@ -38,6 +45,7 @@ exports.handler = async (event, context) => {
           GetIngestionJobCommand,
           ListIngestionJobsCommand,
           GetKnowledgeBaseDocumentsCommand,
+          DeleteKnowledgeBaseDocumentsCommand,
         },
       },
     });

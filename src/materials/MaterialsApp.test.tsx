@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MaterialsApp, {
   MaterialFile,
@@ -199,6 +199,9 @@ describe('MaterialsApp tree view', () => {
     expect(screen.getByTestId('materials-app-empty')).toBeInTheDocument();
   });
 
+  // Updated deliberately when task 4.2's context menu landed: `onCreateFolder`
+  // changed from `(parentId)`, fired on click, to `(parentId, name)`, fired once
+  // the student names the folder in the inline entry the button opens.
   it('offers a create-folder control targeting the selected folder', async () => {
     const user = userEvent.setup();
     const onCreateFolder = jest.fn();
@@ -211,13 +214,29 @@ describe('MaterialsApp tree view', () => {
       />
     );
 
-    // Nothing selected beyond the root -> targets null (root).
+    // Clicking only opens the inline name entry; nothing is created yet.
     await user.click(screen.getByTestId('materials-app-new-folder'));
-    expect(onCreateFolder).toHaveBeenLastCalledWith(null);
+    expect(onCreateFolder).not.toHaveBeenCalled();
+
+    // Nothing selected beyond the root -> targets null (root).
+    await user.type(
+      screen.getByRole('textbox', { name: 'New folder name' }),
+      'Algorithms{Enter}'
+    );
+    await waitFor(() =>
+      expect(onCreateFolder).toHaveBeenLastCalledWith(null, 'Algorithms')
+    );
 
     // Select a folder, then create -> targets that folder id.
     await user.click(screen.getByTestId('folder-label-ds'));
     await user.click(screen.getByTestId('materials-app-new-folder'));
-    expect(onCreateFolder).toHaveBeenLastCalledWith('ds');
+    await user.type(
+      await screen.findByRole('textbox', { name: 'New folder name' }),
+      'Week 4{Enter}'
+    );
+    await waitFor(() =>
+      expect(onCreateFolder).toHaveBeenLastCalledWith('ds', 'Week 4')
+    );
+    expect(onCreateFolder).toHaveBeenCalledTimes(2);
   });
 });

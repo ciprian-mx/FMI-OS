@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "FMI OS materialIndexTrigger Lambda. On S3 ObjectCreated for a Materials document it writes the Bedrock Knowledge Base metadata sidecar ({studentId, folderPath, fileName}), syncs the Knowledge Base data source and tracks MaterialFile.indexingStatus (Task 4.6, Requirement 7.6).",
+  "Description": "FMI OS materialIndexTrigger Lambda. On S3 ObjectCreated for a Materials document it writes the Bedrock Knowledge Base metadata sidecar ({studentId, folderPath, fileName}), syncs the Knowledge Base data source and tracks MaterialFile.indexingStatus (Task 4.6, Requirement 7.6). On S3 ObjectRemoved it deletes the document from the Knowledge Base directly and removes its sidecar (Task 4.1, Requirement 7.8).",
   "Parameters": {
     "CloudWatchRule": {
       "Type": "String",
@@ -260,6 +260,14 @@
                 "bedrock:ListIngestionJobs",
                 "bedrock:GetKnowledgeBaseDocuments"
               ],
+              "Resource": {
+                "Fn::Sub": "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${knowledgeBaseId}"
+              }
+            },
+            {
+              "Sid": "RemoveDeletedMaterialsFromTheKnowledgeBase",
+              "Effect": "Allow",
+              "Action": ["bedrock:DeleteKnowledgeBaseDocuments"],
               "Resource": {
                 "Fn::Sub": "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${knowledgeBaseId}"
               }

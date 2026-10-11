@@ -1,5 +1,6 @@
 /**
- * Production adapters for the `materialIndexTrigger` ports (Task 4.6).
+ * Production adapters for the `materialIndexTrigger` ports (Task 4.6; the
+ * deletion calls `DeleteObject` / `DeleteKnowledgeBaseDocuments`: Task 4.1).
  *
  * They are written against the *shape* of the AWS SDK for JavaScript v3
  * (`client.send(new XCommand(input))`) instead of importing it: the Lambda entry
@@ -8,7 +9,9 @@
  * keeps the request shapes and the error mapping under the repo's typecheck and
  * Jest without adding the SDK to the web app's dependencies.
  */
+import { describeError } from './logging';
 import type {
+  DeleteDocumentResult,
   IndexingStatus,
   IngestionJob,
   KnowledgeBasePort,
@@ -61,10 +64,16 @@ export interface PutObjectInput {
   ContentType: string;
 }
 
+export interface DeleteObjectInput {
+  Bucket: string;
+  Key: string;
+}
+
 export interface S3Sdk {
   client: SdkClientLike;
   HeadObjectCommand: CommandClass<HeadObjectInput>;
   PutObjectCommand: CommandClass<PutObjectInput>;
+  DeleteObjectCommand: CommandClass<DeleteObjectInput>;
 }
 
 export function createS3ObjectStore(sdk: S3Sdk): ObjectStorePort {
@@ -89,6 +98,11 @@ export function createS3ObjectStore(sdk: S3Sdk): ObjectStorePort {
       await sdk.client.send(
         new sdk.PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType })
       );
+    },
+
+    async deleteObject(bucket, key) {
+      // S3 answers 204 for a key that does not exist, so this is idempotent.
+      await sdk.client.send(new sdk.DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
   };
 }
@@ -186,23 +200,27 @@ export function createDynamoMaterialFileRepository(
       return records;
     },
 
-    async updateIndexingStatus(id: string, status: IndexingStatus, updatedAt: string) {
+    async updateIndexingStatus(id: string, status: IndexingStatus, updatedAt: string, s3Key: string) {
       try {
         await sdk.client.send(
           new sdk.UpdateItemCommand({
             TableName: table.tableName,
             Key: { id: { S: id } },
             UpdateExpression: 'SET #indexingStatus = :status, #updatedAt = :updatedAt',
-            // UpdateItem would otherwise upsert a stub row for a deleted record.
-            ConditionExpression: 'attribute_exists(#id)',
+            // attribute_exists: UpdateItem would otherwise upsert a stub row for
+            // a deleted record. s3Key: a file moved or renamed while it was being
+            // indexed now points at a new key, whose own run owns its status.
+            ConditionExpression: 'attribute_exists(#id) AND #s3Key = :s3Key',
             ExpressionAttributeNames: {
               '#id': 'id',
+              '#s3Key': 's3Key',
               '#indexingStatus': 'indexingStatus',
               '#updatedAt': 'updatedAt',
             },
             ExpressionAttributeValues: {
               ':status': { S: status },
               ':updatedAt': { S: updatedAt },
+              ':s3Key': { S: s3Key },
             },
           })
         );
@@ -263,18 +281,24 @@ export interface GetKnowledgeBaseDocumentsInput extends DataSourceRef {
   documentIdentifiers: { dataSourceType: 'S3'; s3: { uri: string } }[];
 }
 
+export interface DeleteKnowledgeBaseDocumentsInput extends DataSourceRef {
+  documentIdentifiers: { dataSourceType: 'S3'; s3: { uri: string } }[];
+}
+
 export interface BedrockAgentSdk {
   client: SdkClientLike;
   StartIngestionJobCommand: CommandClass<StartIngestionJobInput>;
   GetIngestionJobCommand: CommandClass<GetIngestionJobInput>;
   ListIngestionJobsCommand: CommandClass<ListIngestionJobsInput>;
   GetKnowledgeBaseDocumentsCommand: CommandClass<GetKnowledgeBaseDocumentsInput>;
+  DeleteKnowledgeBaseDocumentsCommand: CommandClass<DeleteKnowledgeBaseDocumentsInput>;
 }
 
 /**
- * `StartIngestionJob` errors that mean "try again later": a sync is already
- * running on the data source (one job per data source), or the request was
- * throttled / hit a concurrency quota / failed transiently.
+ * `StartIngestionJob` / `DeleteKnowledgeBaseDocuments` errors that mean "try
+ * again later": a sync is already running on the data source (one job per data
+ * source), or the request was throttled / hit a concurrency quota (at most 10
+ * concurrent direct ingest/delete requests per account) / failed transiently.
  */
 export const BUSY_ERROR_NAMES: readonly string[] = [
   'ConflictException',
@@ -392,6 +416,33 @@ export function createBedrockKnowledgeBase(
       )) as { documentDetails?: { status?: unknown }[] } | undefined;
       const status = output?.documentDetails?.[0]?.status;
       return typeof status === 'string' ? status : null;
+    },
+
+    async deleteDocument(s3Uri): Promise<DeleteDocumentResult> {
+      try {
+        // Direct ingestion API: S3 data sources accept `{ dataSourceType: 'S3', s3: { uri } }`
+        // identifiers. Bedrock answers 202 and finishes the deletion asynchronously.
+        const output = (await sdk.client.send(
+          new sdk.DeleteKnowledgeBaseDocumentsCommand({
+            ...ref,
+            documentIdentifiers: [{ dataSourceType: 'S3', s3: { uri: s3Uri } }],
+          })
+        )) as { documentDetails?: { status?: unknown }[] } | undefined;
+        const status = output?.documentDetails?.[0]?.status;
+        return { outcome: 'accepted', status: typeof status === 'string' ? status : null };
+      } catch (error) {
+        const name = errorName(error);
+        if (name !== undefined && BUSY_ERROR_NAMES.includes(name)) {
+          return { outcome: 'busy', reason: name };
+        }
+        if (name === 'ResourceNotFoundException') {
+          return { outcome: 'not-found', reason: name };
+        }
+        if (name === 'ValidationException') {
+          return { outcome: 'rejected', reason: describeError(error) };
+        }
+        throw error;
+      }
     },
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Port interfaces for the `materialIndexTrigger` Lambda core (Task 4.6,
- * Requirement 7.6).
+ * Requirement 7.6; deletion propagation: Task 4.1, Requirement 7.8).
  *
  * The core never imports the AWS SDK. Everything it needs from the outside
  * world (S3, the `MaterialFile` table, the Bedrock Knowledge Base, time and
@@ -28,6 +28,8 @@ export interface ObjectStorePort {
   headObject(bucket: string, key: string): Promise<ObjectHead | null>;
   /** Writes a small object (the Knowledge Base metadata sidecar). */
   putObject(bucket: string, key: string, body: string, contentType: string): Promise<void>;
+  /** Deletes an object. Succeeds when it does not exist (S3 `DeleteObject` semantics). */
+  deleteObject(bucket: string, key: string): Promise<void>;
 }
 
 /** The fields of a `MaterialFile` row the trigger reads. */
@@ -50,14 +52,17 @@ export interface MaterialFileRepository {
   /** Every record of `studentId` whose `s3Key` equals `s3Key` exactly. */
   findByS3Key(studentId: string, s3Key: string): Promise<MaterialFileRecord[]>;
   /**
-   * Sets `indexingStatus` (and `updatedAt`) on an existing record. Resolves
-   * `false` when the record no longer exists (e.g. deleted while indexing).
-   * Must never create a record.
+   * Sets `indexingStatus` (and `updatedAt`) on an existing record whose
+   * `s3Key` is still `s3Key`. Resolves `false` when the record no longer
+   * exists (deleted while indexing) or now points at another key (the file was
+   * moved or renamed while indexing, so this run's verdict is about an object
+   * the record no longer refers to). Must never create a record.
    */
   updateIndexingStatus(
     id: string,
     status: IndexingStatus,
-    updatedAt: string
+    updatedAt: string,
+    s3Key: string
   ): Promise<boolean>;
 }
 
@@ -93,10 +98,26 @@ export interface KnowledgeBasePort {
   listActiveIngestionJobs(): Promise<IngestionJob[]>;
   /**
    * Per-document ingestion status reported by the Knowledge Base
-   * (`INDEXED`, `FAILED`, `IGNORED`, ...), or `null` when it has none.
+   * (`INDEXED`, `FAILED`, `IGNORED`, `NOT_FOUND`, `DELETING`, ...), or `null`
+   * when it has none.
    */
   getDocumentStatus(s3Uri: string): Promise<string | null>;
+  /**
+   * Removes one document from the Knowledge Base directly
+   * (`DeleteKnowledgeBaseDocuments`), without a data-source sync.
+   */
+  deleteDocument(s3Uri: string): Promise<DeleteDocumentResult>;
 }
+
+export type DeleteDocumentResult =
+  /** Bedrock accepted the deletion (HTTP 202). `status` is the document status it reported, e.g. `DELETING`. */
+  | { outcome: 'accepted'; status: string | null }
+  /** The Knowledge Base does not know the document. */
+  | { outcome: 'not-found'; reason: string }
+  /** Throttled, over the concurrent-request quota, or a transient service error: retry later. */
+  | { outcome: 'busy'; reason: string }
+  /** Bedrock refused the request (e.g. `ValidationException`); a data-source sync has to remove it. */
+  | { outcome: 'rejected'; reason: string };
 
 /** Time source. Injected so tests can run multi-minute flows instantly. */
 export interface Clock {

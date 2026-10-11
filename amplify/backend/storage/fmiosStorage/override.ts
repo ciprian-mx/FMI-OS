@@ -81,4 +81,22 @@ export function override(resources: AmplifyS3ResourceTemplate): void {
     );
     authPolicy.policyDocument.Statement.push(listStatement as any);
   }
+
+  // Task 4.6: only the materialIndexTrigger Lambda writes Bedrock Knowledge
+  // Base metadata sidecars (`<file>.metadata.json`). A sidecar carries the
+  // `studentId` tag the retrieval-time isolation filter relies on, so a student
+  // must not be able to create or overwrite one, even inside their own prefix.
+  // An explicit Deny overrides every Allow on the authenticated role; the
+  // Lambda's own role is unaffected. The app never uploads .json files.
+  const denyMetadataSidecarWrites = {
+    Effect: 'Deny',
+    Action: ['s3:PutObject'],
+    Resource: {
+      'Fn::Join': ['', ['arn:aws:s3:::', { Ref: 'S3Bucket' }, '/*.metadata.json']],
+    },
+  };
+
+  if (authPolicy?.policyDocument?.Statement) {
+    authPolicy.policyDocument.Statement.push(denyMetadataSidecarWrites as any);
+  }
 }

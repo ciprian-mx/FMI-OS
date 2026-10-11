@@ -163,3 +163,261 @@
   color: #8f9fba;
   font-size: 0.85rem;
 }
+
+.materials-app__new-folder:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Keyboard focus on rows (folder labels, toggles and focusable file rows). */
+.materials-app__toggle:focus-visible,
+.materials-app__folder-label:focus-visible,
+.materials-app__file:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Per-row "More actions" button (always visible, brighter on hover/focus). */
+.materials-app__row-actions {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.materials-app__row-actions:hover,
+.materials-app__row-actions:focus-visible,
+.materials-app__row-actions[aria-expanded='true'] {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  outline: none;
+}
+
+.materials-app__row-actions:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+/* Context menu (rendered in a portal on document.body). */
+.materials-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 10rem;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  color: #e6eefc;
+  background: #13233b;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 0.85rem;
+}
+
+.materials-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.75rem;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+/* Focus is moved programmatically, so always show which item has it. */
+.materials-menu__item:hover,
+.materials-menu__item:focus {
+  background: rgba(90, 150, 255, 0.28);
+  outline: none;
+}
+
+.materials-menu__item--danger {
+  color: #ff9a9a;
+}
+
+.materials-menu__item--danger:hover,
+.materials-menu__item--danger:focus {
+  background: rgba(255, 120, 120, 0.22);
+}
+
+/* Inline name entry (new folder) and inline rename. */
+.materials-app__inline-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.materials-app__inline-input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 0.15rem 0.35rem;
+  color: inherit;
+  background: #06101d;
+  border: 1px solid rgba(138, 180, 255, 0.6);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.materials-app__inline-input:focus {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 0;
+}
+
+.materials-app__inline-input[aria-invalid='true'] {
+  border-color: #ff9a9a;
+}
+
+.materials-app__extension {
+  flex: 0 0 auto;
+  color: #8f9fba;
+}
+
+.materials-app__inline-button {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.materials-app__inline-button:hover,
+.materials-app__inline-button:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+.materials-app__inline-error {
+  flex-basis: 100%;
+  margin: 0.1rem 0 0;
+  color: #ff9a9a;
+  font-size: 0.75rem;
+}
+
+/* Move picker and delete confirmation. */
+.materials-app__dialog {
+  margin: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  background: #13233b;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+}
+
+.materials-app__dialog--danger {
+  border-color: rgba(255, 154, 154, 0.45);
+}
+
+.materials-app__dialog-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.materials-app__dialog-text {
+  margin: 0 0 0.5rem;
+  color: #c7d4ea;
+}
+
+.materials-app__dialog-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #c7d4ea;
+  font-size: 0.8rem;
+}
+
+.materials-app__dialog-select {
+  width: 100%;
+  padding: 0.25rem;
+  color: inherit;
+  background: #06101d;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.materials-app__dialog-select option {
+  background: #13233b;
+}
+
+.materials-app__dialog-error {
+  margin: 0.5rem 0 0;
+  color: #ff9a9a;
+  font-size: 0.8rem;
+}
+
+.materials-app__dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.materials-app__button {
+  padding: 0.25rem 0.75rem;
+  color: #e6eefc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.materials-app__button:hover,
+.materials-app__button:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+.materials-app__button--primary {
+  background: rgba(90, 150, 255, 0.35);
+  border-color: rgba(138, 180, 255, 0.6);
+}
+
+.materials-app__button--danger {
+  background: rgba(255, 120, 120, 0.25);
+  border-color: rgba(255, 154, 154, 0.6);
+}
+
+/* Callback in flight: controls stay focusable but inert. */
+.materials-app__button[aria-disabled='true'],
+.materials-app__inline-button[aria-disabled='true'] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.materials-app__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

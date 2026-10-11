@@ -32,18 +32,22 @@ data isolation)**.
 > `private/{cognito-identity-id}/` prefix required by Requirement 1.1/1.5. When
 > the upload pipeline is wired in task 4.5, write materials under
 > `private/{cognito-identity-id}/materials/{folderPath}/{fileName}` so the keys
-> stay inside the IAM-enforced prefix. Adjust the Lambda's S3 event prefix
-> filter to match at that time.
+> stay inside the IAM-enforced prefix. The `materialIndexTrigger` Lambda
+> (task 4.6) accepts both layouts and ignores every other key.
 
 ## Files
 
 - `cli-inputs.json` — Amplify Storage (S3) service configuration: bucket,
-  authenticated-only access, no guest access, no trigger function.
+  authenticated-only access, no guest access, and the `materialIndexTrigger`
+  S3 trigger function (task 4.6; see
+  `amplify/backend/function/materialIndexTrigger/README.md`).
 - `override.ts` — the enforced per-student prefix IAM policy. Amplify runs this
   against the generated S3 CloudFormation stack on `amplify push`, rewriting the
   authenticated role's object statements to the single prefix
   `private/${cognito-identity.amazonaws.com:sub}/*` and adding the prefix-scoped
-  `ListBucket` statement.
+  `ListBucket` statement. It also denies students `s3:PutObject` on
+  `*.metadata.json`, so only the trigger Lambda can write the Knowledge Base
+  metadata sidecars that carry the `studentId` tag (task 4.6).
 - `storage-params.json` — human-readable description of the intended prefix and
   the resulting IAM statements, for reviewers who are not reading the override.
 
@@ -63,8 +67,8 @@ locally rather than committing provisioned resources:
    - Friendly name / resource name: `fmiosStorage`.
    - Who should have access: **Auth users only**.
    - Auth user access: **create/update, read, delete**.
-   - Lambda trigger: **No** for this task (the `materialIndexTrigger` S3 event
-     Lambda is added in task 4.6).
+   - Lambda trigger: the existing `materialIndexTrigger` function (task 4.6);
+     follow `amplify/backend/function/materialIndexTrigger/README.md`.
 3. Apply the per-student prefix override:
    - `amplify override storage` (scaffolds the override entry point if needed),
      then keep / merge the committed `override.ts` in this folder.

@@ -7,7 +7,7 @@
     "storageAccess": "auth",
     "authAccess": ["CREATE_AND_UPDATE", "READ", "DELETE"],
     "guestAccess": [],
-    "triggerFunction": "NONE",
+    "triggerFunction": "materialIndexTrigger",
     "groupAccess": {}
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "materialIndexTrigger",
   "version": "1.0.0",
-  "description": "S3 ObjectCreated trigger: tags FMI OS Materials uploads for the Bedrock Knowledge Base, syncs it and tracks MaterialFile.indexingStatus",
+  "description": "S3 trigger: tags FMI OS Materials uploads for the Bedrock Knowledge Base, syncs it and tracks MaterialFile.indexingStatus; removes deleted Materials from the Knowledge Base",
   "main": "index.js",
   "license": "Apache-2.0",
   "engines": {

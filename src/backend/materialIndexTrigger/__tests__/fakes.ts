@@ -13,6 +13,7 @@ import {
 } from '../indexMaterial';
 import type {
   Clock,
+  DeleteDocumentResult,
   IndexingStatus,
   IngestionJob,
   KnowledgeBasePort,
@@ -54,7 +55,11 @@ export class FakeObjectStore implements ObjectStorePort {
 
   readonly puts: { bucket: string; key: string; body: string; contentType: string }[] = [];
 
+  readonly deletes: { bucket: string; key: string }[] = [];
+
   headError: Error | null = null;
+
+  deleteError: Error | null = null;
 
   constructor(private readonly trace: string[]) {}
 
@@ -75,6 +80,15 @@ export class FakeObjectStore implements ObjectStorePort {
     this.trace.push(`s3.put ${key}`);
     this.puts.push({ bucket, key, body, contentType });
     this.objects.set(`${bucket}/${key}`, { metadata: {}, body, contentType });
+  }
+
+  async deleteObject(bucket: string, key: string): Promise<void> {
+    this.trace.push(`s3.delete ${key}`);
+    if (this.deleteError) {
+      throw this.deleteError;
+    }
+    this.deletes.push({ bucket, key });
+    this.objects.delete(`${bucket}/${key}`);
   }
 }
 
@@ -113,10 +127,16 @@ export class FakeMaterialFileRepository implements MaterialFileRepository {
       .map((record) => ({ ...record }));
   }
 
-  async updateIndexingStatus(id: string, status: IndexingStatus, updatedAt: string): Promise<boolean> {
+  async updateIndexingStatus(
+    id: string,
+    status: IndexingStatus,
+    updatedAt: string,
+    s3Key: string
+  ): Promise<boolean> {
     this.trace.push(`db.update ${id} ${status}`);
     const record = this.records.get(id);
-    if (!record) {
+    // Like the adapter's condition: the record must exist and still point at the key.
+    if (!record || record.s3Key !== s3Key) {
       return false;
     }
     record.indexingStatus = status;
@@ -148,7 +168,18 @@ export class FakeKnowledgeBase implements KnowledgeBasePort {
 
   activeJobs: IngestionJob[] = [];
 
+  /** Thrown by `listActiveIngestionJobs` when set. */
+  listError: Error | null = null;
+
   documentStatus: string | null | Error = 'INDEXED';
+
+  /** Answers of successive `getDocumentStatus` calls; afterwards `documentStatus`. */
+  documentStatusScript: (string | null | Error)[] = [];
+
+  /** Results of successive `deleteDocument` calls; afterwards `fallbackDelete`. */
+  deleteScript: (DeleteDocumentResult | Error)[] = [];
+
+  fallbackDelete: DeleteDocumentResult = { outcome: 'accepted', status: 'DELETING' };
 
   /** Called on every poll (lets a test change the world mid-sync). */
   onPoll: (() => void) | null = null;
@@ -188,15 +219,29 @@ export class FakeKnowledgeBase implements KnowledgeBasePort {
 
   async listActiveIngestionJobs(): Promise<IngestionJob[]> {
     this.trace.push('kb.list');
+    if (this.listError) {
+      throw this.listError;
+    }
     return this.activeJobs.map((job) => ({ ...job }));
   }
 
   async getDocumentStatus(s3Uri: string): Promise<string | null> {
     this.trace.push(`kb.doc ${s3Uri}`);
-    if (this.documentStatus instanceof Error) {
-      throw this.documentStatus;
+    const next =
+      this.documentStatusScript.length > 0 ? this.documentStatusScript.shift() : this.documentStatus;
+    if (next instanceof Error) {
+      throw next;
     }
-    return this.documentStatus;
+    return next ?? null;
+  }
+
+  async deleteDocument(s3Uri: string): Promise<DeleteDocumentResult> {
+    this.trace.push(`kb.delete ${s3Uri}`);
+    const next = this.deleteScript.length > 0 ? this.deleteScript.shift() : this.fallbackDelete;
+    if (next instanceof Error) {
+      throw next;
+    }
+    return next ?? this.fallbackDelete;
   }
 }
 
@@ -255,12 +300,13 @@ export function encodeS3EventKey(key: string): string {
 /** A one-record S3 event notification for `key` (encoded as S3 would). */
 export function s3Event(
   key: string,
-  options: { bucket?: string; eventName?: string; encoded?: boolean } = {}
+  options: { bucket?: string; eventName?: string; encoded?: boolean; eventTime?: string } = {}
 ): S3EventLike {
   return {
     Records: [
       {
         eventName: options.eventName ?? 'ObjectCreated:Put',
+        ...(options.eventTime !== undefined ? { eventTime: options.eventTime } : {}),
         s3: {
           bucket: { name: options.bucket ?? 'fmios-materials-storage-dev' },
           object: { key: options.encoded === false ? key : encodeS3EventKey(key) },

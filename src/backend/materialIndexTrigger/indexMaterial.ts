@@ -20,6 +20,10 @@
  * Records are processed independently and the handler never throws for a bad
  * record, so one failure cannot make Lambda retry (and re-index) a whole batch.
  * Every failure after step 2 is reported on the verified records as `FAILED`.
+ *
+ * `ObjectRemoved:*` events for a Materials document (a delete, or the old key
+ * of a move / rename) go to `removeMaterial.ts` (Task 4.1, Requirement 7.8),
+ * which takes the document out of the Knowledge Base and deletes its sidecar.
  */
 import {
   acquireIngestionJob,
@@ -29,6 +33,7 @@ import {
   type IngestionOutcome,
   type IngestionTimings,
 } from './ingestion';
+import { removeMaterialObject, type RemovalOutcome, type RemovalTimings } from './removeMaterial';
 import { describeError } from './logging';
 import type {
   Clock,
@@ -49,6 +54,8 @@ export const STUDENT_ID_METADATA_KEY = 'studentid';
 /** The parts of an S3 event-notification record the trigger reads. */
 export interface S3EventRecordLike {
   eventName?: string;
+  /** ISO-8601 time of the S3 operation (used to log deletion latency). */
+  eventTime?: string;
   s3?: {
     bucket?: { name?: string };
     object?: { key?: string };
@@ -64,7 +71,7 @@ export interface InvocationContextLike {
   getRemainingTimeInMillis?: () => number;
 }
 
-export interface IndexerConfig extends IngestionTimings {
+export interface IndexerConfig extends IngestionTimings, RemovalTimings {
   /** Waits between `MaterialFile` lookups while the upload's record is created. */
   recordLookupDelaysMs: readonly number[];
   /** Processing budget when no Lambda context is available. */
@@ -84,6 +91,11 @@ export const DEFAULT_INDEXER_CONFIG: IndexerConfig = {
   recordLookupDelaysMs: [1_000, 2_000, 4_000, 8_000],
   defaultBudgetMs: 13 * 60_000,
   deadlineSafetyMarginMs: 30_000,
+  // Removals (Requirement 7.8: within 10 s). ~7.5 s of retries while Bedrock
+  // throttles direct deletions, then up to 10 s of confirmation polling.
+  deleteRetryDelaysMs: [500, 1_000, 2_000, 4_000],
+  deleteConfirmPollMs: 1_000,
+  deleteConfirmTimeoutMs: 10_000,
 };
 
 export interface IndexerDeps {
@@ -95,7 +107,7 @@ export interface IndexerDeps {
   config: IndexerConfig;
 }
 
-/** Why an event record is not a Materials document upload. */
+/** Why an event record is not a Materials document upload or removal. */
 export type IgnoreReason = KeyIgnoreReason | 'unsupported-event' | 'malformed-record';
 
 /** Why a Materials document was not indexed. */
@@ -118,8 +130,10 @@ export type RecordOutcome =
       /** Records whose terminal status was written. */
       recordIds: string[];
     }
-  /** Failed before the owning records were verified, so no status could be written. */
-  | { kind: 'error'; key: string; message: string };
+  /** Failed before the owning records were verified (or, for a removal, before the object was checked). */
+  | { kind: 'error'; key: string; message: string }
+  /** An `ObjectRemoved` event for a Materials document (see `removeMaterial.ts`). */
+  | RemovalOutcome;
 
 export interface HandleS3EventResult {
   outcomes: RecordOutcome[];
@@ -206,6 +220,19 @@ function isObjectCreatedEvent(eventName: string): boolean {
   return /^(s3:)?ObjectCreated:/.test(eventName);
 }
 
+/** `ObjectRemoved:Delete` (unversioned bucket) and `ObjectRemoved:DeleteMarkerCreated` (versioned). */
+function isObjectRemovedEvent(eventName: string): boolean {
+  return /^(s3:)?ObjectRemoved:/.test(eventName);
+}
+
+function parseEventTime(value: unknown): number | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function readMetadata(metadata: Readonly<Record<string, string>>, name: string): string | null {
   for (const [key, value] of Object.entries(metadata)) {
     if (key.toLowerCase() === name && typeof value === 'string' && value.trim() !== '') {
@@ -224,7 +251,8 @@ async function indexRecord(
   const bucket = record?.s3?.bucket?.name;
   const rawKey = record?.s3?.object?.key;
 
-  if (!isObjectCreatedEvent(eventName)) {
+  const removed = isObjectRemovedEvent(eventName);
+  if (!removed && !isObjectCreatedEvent(eventName)) {
     return ignore(typeof rawKey === 'string' ? rawKey : null, 'unsupported-event', deps, {
       eventName,
     });
@@ -233,12 +261,31 @@ async function indexRecord(
     return ignore(null, 'malformed-record', deps);
   }
 
+  // The same filter for both event types: sidecar removals (our own cleanup,
+  // or a sidecar deleted with its folder) and folder markers are ignored.
   const parsed = parseS3EventKey(rawKey);
   if (!parsed.ok) {
-    return ignore(rawKey, parsed.reason, deps);
+    return ignore(rawKey, parsed.reason, deps, removed ? { eventName } : {});
   }
 
   const material = parsed.value;
+  if (removed) {
+    try {
+      return await removeMaterialObject(
+        bucket,
+        material,
+        deps,
+        deadlineMs,
+        parseEventTime(record?.eventTime)
+      );
+    } catch (error) {
+      deps.logger.error('Removing the material failed before the object was checked', {
+        key: material.key,
+        error: describeError(error),
+      });
+      return { kind: 'error', key: material.key, message: describeError(error) };
+    }
+  }
   try {
     return await indexMaterialObject(bucket, material, deps, deadlineMs);
   } catch (error) {
@@ -418,10 +465,12 @@ async function writeStatus(
   const updated: string[] = [];
   for (const record of records) {
     try {
-      if (await deps.materialFiles.updateIndexingStatus(record.id, status, updatedAt)) {
+      // Conditional on the record still pointing at `key`: a file moved or
+      // renamed meanwhile gets its status from the run for its new key.
+      if (await deps.materialFiles.updateIndexingStatus(record.id, status, updatedAt, key)) {
         updated.push(record.id);
       } else {
-        deps.logger.warn('MaterialFile record no longer exists; status not written', {
+        deps.logger.warn('MaterialFile record is gone or now points at another key; status not written', {
           key,
           recordId: record.id,
           status,

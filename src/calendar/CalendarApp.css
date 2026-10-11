@@ -1,0 +1,274 @@
+/* Calendar App (Task 7.1): API week view + sandboxed iframe mode. */
+.calendar-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 280px;
+  color: #e6eefc;
+  background: #0b1626;
+  font-size: 0.9rem;
+}
+
+.calendar-app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.calendar-app__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.calendar-app__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.calendar-app__api,
+.calendar-app__connect,
+.calendar-app__embed {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+
+.calendar-app__button {
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #e6eefc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.calendar-app__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.calendar-app__button:focus-visible,
+.calendar-app__event-link:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 2px;
+}
+
+.calendar-app__button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.calendar-app__button--primary {
+  background: rgba(90, 150, 255, 0.28);
+  border-color: rgba(138, 180, 255, 0.6);
+}
+
+/* ---- Connect, status and messages --------------------------------------- */
+
+.calendar-app__intro,
+.calendar-app__notice,
+.calendar-app__note,
+.calendar-app__status,
+.calendar-app__loading,
+.calendar-app__empty,
+.calendar-app__pending-text {
+  margin: 0;
+}
+
+.calendar-app__intro,
+.calendar-app__notice {
+  color: #c7d4ea;
+}
+
+.calendar-app__providers,
+.calendar-app__alternative,
+.calendar-app__alert-actions,
+.calendar-app__pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.calendar-app__pending {
+  padding: 0.5rem 0.75rem;
+  background: rgba(138, 180, 255, 0.08);
+  border: 1px solid rgba(138, 180, 255, 0.3);
+  border-radius: 6px;
+}
+
+.calendar-app__status,
+.calendar-app__note,
+.calendar-app__day-empty {
+  font-size: 0.8rem;
+  color: #8f9fba;
+}
+
+.calendar-app__loading,
+.calendar-app__empty {
+  padding: 1rem 0;
+  color: #8f9fba;
+  text-align: center;
+}
+
+.calendar-app__alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 122, 122, 0.1);
+  border: 1px solid rgba(255, 154, 154, 0.45);
+  border-radius: 6px;
+}
+
+.calendar-app__alert-message {
+  margin: 0;
+  color: #ffd0d0;
+}
+
+/* ---- Toolbar ------------------------------------------------------------ */
+
+.calendar-app__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.calendar-app__nav,
+.calendar-app__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.calendar-app__range {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---- Week view ---------------------------------------------------------- */
+
+/* Seven columns when the window is wide; wraps into an agenda when narrow. */
+.calendar-app__week {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-app__day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+/* Today: accent border plus a "Today" badge, never color alone. */
+.calendar-app__day--today {
+  border-color: rgba(138, 180, 255, 0.7);
+}
+
+.calendar-app__day-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #c7d4ea;
+}
+
+.calendar-app__today {
+  padding: 0 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0b1626;
+  background: #8ab4ff;
+  border-radius: 999px;
+}
+
+.calendar-app__day-empty {
+  margin: 0;
+}
+
+.calendar-app__events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-app__event {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem 0.45rem;
+  background: rgba(90, 150, 255, 0.14);
+  border-left: 3px solid #8ab4ff;
+  border-radius: 4px;
+}
+
+.calendar-app__event--all-day {
+  background: rgba(130, 220, 170, 0.14);
+  border-left-color: #82dcaa;
+}
+
+.calendar-app__event-time {
+  font-size: 0.72rem;
+  color: #c7d4ea;
+}
+
+.calendar-app__event-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.calendar-app__event-location {
+  font-size: 0.75rem;
+  color: #8f9fba;
+  overflow-wrap: anywhere;
+}
+
+.calendar-app__event-link {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  color: #8ab4ff;
+}
+
+/* ---- Iframe mode -------------------------------------------------------- */
+
+.calendar-app__frame {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 320px;
+  background: #ffffff;
+  border: 0;
+  border-radius: 6px;
+}

@@ -280,7 +280,8 @@ describe('materialIndexTrigger — objects that are not indexed', () => {
     ['its own metadata sidecar', s3Event(SIDECAR), 'metadata-sidecar'],
     ['a folder marker', s3Event(`private/${IDENTITY}/materials/Week 3/`), 'folder-marker'],
     ['an upload outside materials/', s3Event(`private/${IDENTITY}/timetables/week.png`), 'outside-materials'],
-    ['a deletion event', s3Event(KEY, { eventName: 'ObjectRemoved:Delete' }), 'unsupported-event'],
+    // ObjectRemoved is handled since task 4.1 (removeMaterial.test.ts); other event types are not.
+    ['an unsupported event type', s3Event(KEY, { eventName: 'ObjectRestore:Completed' }), 'unsupported-event'],
     [
       'a record without a key',
       { Records: [{ eventName: 'ObjectCreated:Put', s3: { bucket: { name: BUCKET } } }] },

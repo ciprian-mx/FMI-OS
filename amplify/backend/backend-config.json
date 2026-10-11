@@ -34,6 +34,18 @@
       "build": true,
       "providerPlugin": "awscloudformation",
       "service": "Lambda"
+    },
+    "materialIndexTrigger": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda",
+      "dependsOn": [
+        {
+          "category": "api",
+          "resourceName": "fmios",
+          "attributes": ["GraphQLAPIIdOutput"]
+        }
+      ]
     }
   },
   "api": {
@@ -69,6 +81,11 @@
           "category": "auth",
           "resourceName": "fmios",
           "attributes": ["UserPoolId", "IdentityPoolId"]
+        },
+        {
+          "category": "function",
+          "resourceName": "materialIndexTrigger",
+          "attributes": ["Name", "Arn", "LambdaExecutionRole"]
         }
       ]
     }
